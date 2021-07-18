@@ -20,6 +20,7 @@ import 'algos/heap_sort.dart';
 import 'algos/insertion_sort.dart';
 import 'algos/merge_sort.dart';
 import 'algos/quick_sort.dart';
+import 'algos/radix_sort.dart';
 import 'algos/selection_sort.dart';
 import 'algos/shell_sort.dart';
 import 'algos/tim_sort.dart';
@@ -34,6 +35,7 @@ final List algos = [
   ['Insertion Sort', () => InsertionSort(), Colors.red],
   ['Merge Sort', () => MergeSort(), Colors.orange],
   ['Quick Sort', () => QuickSort(), Colors.deepPurple],
+  // ['Radix Sort', () => RadixSort(), Colors.deepPurple],
   ['Selection Sort', () => SelectionSort(), Colors.pink],
   ['Shell Sort', () => ShellSort(), Colors.amber],
   ['Tim Sort', () => TimSort(), Colors.teal],
@@ -599,8 +601,8 @@ class SortWidgetState extends State<SortWidget> {
                                       double x = entry.n.toDouble();
                                       double y = (entry.r + entry.w + entry.c)
                                           .toDouble();
-                                      if (logx) x = log(x);
-                                      if (logy) y = log(y);
+                                      if (logx) x = log(x + 0.001);
+                                      if (logy) y = log(y + 0.001);
                                       return FlSpot(x, y);
                                     }).toList(),
                                     isCurved: true,
@@ -664,6 +666,10 @@ class SortWidgetState extends State<SortWidget> {
                       Text('log y'),
                     ],
                   ),
+                  Divider(),
+                  Text('Compare all algorithms on lists which are:',
+                      textAlign: TextAlign.center),
+                  Divider(),
                   Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [

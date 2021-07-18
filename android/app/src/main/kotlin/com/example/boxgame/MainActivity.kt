@@ -1,4 +1,4 @@
-package com.example.boxgame
+package org.nhcham.sorting_sandbox
 
 import io.flutter.embedding.android.FlutterActivity
 

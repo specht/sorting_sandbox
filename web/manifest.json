@@ -1,11 +1,11 @@
 {
-    "name": "boxgame",
-    "short_name": "boxgame",
+    "name": "Sorting Sandbox",
+    "short_name": "Sorting Sandbox",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Play around with sorting algorithms",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
