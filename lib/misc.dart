@@ -92,13 +92,6 @@ abstract class SortingAlgorithm {
   void setElements(Elements list, Elements scratch) async {
     this.list = list;
     this.scratch = scratch;
-    // final Directory? directory = await getApplicationDocumentsDirectory();
-    // if (directory != null) {
-    //   settingsFile = File('${directory.path}/speed.txt');
-    //   String s = await settingsFile!.readAsString();
-    //   int speed = int.parse(s);
-    //   developer.log('speed is $speed');
-    // }
   }
 
   void update({bool force = false}) {
