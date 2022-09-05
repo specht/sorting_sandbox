@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:developer' as developer;
 import 'package:sorting_sandbox/main.dart' show SortWidgetState;
-import 'package:path_provider/path_provider.dart';
 
 class Element {
   int a;

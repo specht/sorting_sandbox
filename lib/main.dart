@@ -4,7 +4,6 @@ import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/rendering.dart';
-import 'package:path_provider/path_provider.dart';
 import 'dart:math';
 import 'dart:ui';
 import 'dart:developer' as developer;
@@ -378,6 +377,8 @@ class SortWidgetState extends State<SortWidget> {
                       barTouchData: BarTouchData(
                         enabled: false,
                       ),
+                      gridData: FlGridData(
+                          drawHorizontalLine: false, drawVerticalLine: false),
                       titlesData: FlTitlesData(
                         show: false,
                       ),
@@ -394,15 +395,19 @@ class SortWidgetState extends State<SortWidget> {
                           x: x,
                           barRods: [
                             BarChartRodData(
-                                y: pow(y, exponent).toDouble(),
-                                colors: x == a
-                                    ? [Colors.red]
-                                    : x == b
-                                        ? [Colors.orange]
-                                        : [
-                                            Colors.lightBlueAccent,
-                                            Colors.greenAccent,
-                                          ],
+                                toY: pow(y, exponent).toDouble(),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: x == a
+                                      ? [Colors.orange, Colors.orange]
+                                      : x == b
+                                          ? [Colors.red, Colors.red]
+                                          : [
+                                              Colors.greenAccent,
+                                              Colors.lightBlueAccent,
+                                            ],
+                                ),
                                 width: 2)
                           ],
                         );
@@ -417,6 +422,16 @@ class SortWidgetState extends State<SortWidget> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Text("Size: ${numbers.length}"),
+                    Text("Reads: ${itos(r_count)}"),
+                    Text("Writes: ${itos(w_count)}"),
+                    Text("Comparisons: ${itos(c_count)}"),
+                  ],
+                ),
+                Divider(),
                 Expanded(
                   child: BarChart(
                     BarChartData(
@@ -425,6 +440,8 @@ class SortWidgetState extends State<SortWidget> {
                       barTouchData: BarTouchData(
                         enabled: false,
                       ),
+                      gridData: FlGridData(
+                          drawHorizontalLine: false, drawVerticalLine: false),
                       titlesData: FlTitlesData(
                         show: false,
                       ),
@@ -441,15 +458,19 @@ class SortWidgetState extends State<SortWidget> {
                           x: x,
                           barRods: [
                             BarChartRodData(
-                                y: pow(y, exponent).toDouble(),
-                                colors: x == c
-                                    ? [Colors.red]
-                                    : x == d
-                                        ? [Colors.orange]
-                                        : [
-                                            Color(0xff808080),
-                                            Color(0xffe0e0e0),
-                                          ],
+                                toY: pow(y, exponent).toDouble(),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: x == c
+                                      ? [Colors.orange, Colors.orange]
+                                      : x == d
+                                          ? [Colors.red, Colors.red]
+                                          : [
+                                              Color(0xff808080),
+                                              Color(0xffe0e0e0),
+                                            ],
+                                ),
                                 width: 2)
                           ],
                         );
@@ -539,16 +560,6 @@ class SortWidgetState extends State<SortWidget> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Text("Size: ${numbers.length}"),
-                    Text("Reads: ${itos(r_count)}"),
-                    Text("Writes: ${itos(w_count)}"),
-                    Text("Comparisons: ${itos(c_count)}"),
-                  ],
-                ),
-                Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
                     IconButton(
                         onPressed: oneShotIsolate != null
                             ? null
@@ -606,10 +617,15 @@ class SortWidgetState extends State<SortWidget> {
                                       return FlSpot(x, y);
                                     }).toList(),
                                     isCurved: true,
-                                    colors: [
-                                      algos[algoMap[algoName]!][2] ??
-                                          Colors.black45
-                                    ],
+                                    gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          algos[algoMap[algoName]!][2] ??
+                                              Colors.black45,
+                                          algos[algoMap[algoName]!][2] ??
+                                              Colors.black45
+                                        ]),
                                     barWidth: 2,
                                     isStrokeCapRound: true,
                                     dotData: FlDotData(
