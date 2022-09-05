@@ -214,16 +214,16 @@ class SortWidgetState extends State<SortWidget> {
   }
 
   String itos(int i) {
-    if (i < 1000) {
+    if (i < 1e3) {
       return i.toString();
-    } else if (i < 1000000) {
-      return "${i ~/ 1000}.${(i % 1000) ~/ 100}k";
-    } else if (i < 1000000000) {
-      return "${i ~/ 1000000}.${(i % 1000000) ~/ 100000}M";
-    } else if (i < 1000000000000) {
-      return "${i ~/ 1000000000}.${(i % 1000000000) ~/ 100000000}G";
-    } else if (i < 1000000000000000) {
-      return "${i ~/ 1000000000000}.${(i % 1000000000000) ~/ 100000000000}T";
+    } else if (i < 1e6) {
+      return "${i ~/ 1e3}.${(i % 1e3) ~/ 1e2}k";
+    } else if (i < 1e9) {
+      return "${i ~/ 1e6}.${(i % 1e6) ~/ 1e5}M";
+    } else if (i < 1e12) {
+      return "${i ~/ 1e9}.${(i % 1e9) ~/ 1e8}G";
+    } else if (i < 1e15) {
+      return "${i ~/ 1e12}.${(i % 1e12) ~/ 1e11}T";
     }
     return i.toString();
   }
@@ -303,25 +303,17 @@ class SortWidgetState extends State<SortWidget> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text("Let's sort some numbers! 🥳"),
-      ),
-      floatingActionButton: isSorted
-          ? RawMaterialButton(
-              onPressed: () {},
-              elevation: 2.0,
-              child: Icon(Icons.check, color: Colors.green),
-              fillColor: Colors.white,
-              shape: CircleBorder(),
-              padding: EdgeInsets.all(15.0),
-            )
-          : RawMaterialButton(
-              onPressed: () {},
-              elevation: 2.0,
-              child: Icon(Icons.error_outline, color: Colors.red),
-              fillColor: Colors.white,
-              shape: CircleBorder(),
-              padding: EdgeInsets.all(15.0),
+        title: Row(
+          children: [
+            Text("Let's sort some numbers! 🥳"),
+            Spacer(),
+            Icon(
+              isSorted ? Icons.check : Icons.error_outline,
+              color: isSorted ? Colors.white : Colors.white,
             ),
+          ],
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: PageView(
         controller: pageController,
