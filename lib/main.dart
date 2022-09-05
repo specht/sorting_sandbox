@@ -1,9 +1,6 @@
-import 'dart:io';
 import 'dart:isolate';
-
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/rendering.dart';
 import 'dart:math';
 import 'dart:ui';
 import 'dart:developer' as developer;
@@ -11,33 +8,9 @@ import 'dart:developer' as developer;
 import 'misc.dart';
 
 import 'algos/bubble_sort.dart';
-import 'algos/comb_sort.dart';
-import 'algos/cycle_sort.dart';
-import 'algos/exchange_sort.dart';
-import 'algos/gnome_sort.dart';
-import 'algos/heap_sort.dart';
-import 'algos/insertion_sort.dart';
-import 'algos/merge_sort.dart';
-import 'algos/quick_sort.dart';
-import 'algos/radix_sort.dart';
-import 'algos/selection_sort.dart';
-import 'algos/shell_sort.dart';
-import 'algos/tim_sort.dart';
 
 final List algos = [
   ['Bubble Sort', () => BubbleSort(), Colors.green],
-  ['Comb Sort', () => CombSort(), Colors.redAccent],
-  ['Cycle Sort', () => CycleSort(), Colors.blueAccent],
-  ['Exchange Sort', () => ExchangeSort(), Colors.deepOrange],
-  ['Gnome Sort', () => GnomeSort(), Colors.greenAccent],
-  ['Heap Sort', () => HeapSort(), Colors.brown],
-  ['Insertion Sort', () => InsertionSort(), Colors.red],
-  ['Merge Sort', () => MergeSort(), Colors.orange],
-  ['Quick Sort', () => QuickSort(), Colors.deepPurple],
-  // ['Radix Sort', () => RadixSort(), Colors.deepPurple],
-  ['Selection Sort', () => SelectionSort(), Colors.pink],
-  ['Shell Sort', () => ShellSort(), Colors.amber],
-  ['Tim Sort', () => TimSort(), Colors.teal],
 ];
 
 Map<String, int> algoMap = {};
@@ -53,9 +26,7 @@ List speedSettings = [
 ];
 
 void main() {
-  for (int i = 0; i < algos.length; i++) {
-    algoMap[algos[i][0]] = i;
-  }
+  for (int i = 0; i < algos.length; i++) algoMap[algos[i][0]] = i;
   runApp(new RootApp());
 }
 
@@ -80,9 +51,9 @@ class SortWidgetState extends State<SortWidget> {
   List<int> numbers = [];
   List<int> scratch = [];
   SortingAlgorithm? algo;
-  int r_count = 0;
-  int w_count = 0;
-  int c_count = 0;
+  int rCount = 0;
+  int wCount = 0;
+  int cCount = 0;
   int magnitude = 0;
   double exponent = 0.3;
   bool isSorted = false;
@@ -90,7 +61,7 @@ class SortWidgetState extends State<SortWidget> {
   int speed = 3;
   String sortingAlgoName = algos.first[0];
   Map<String, List<Benchmark>> benchmarkByAlgo = {};
-  int min_x = 0, max_x = 1, min_y = 0, max_y = 1;
+  int minX = 0, maxX = 1, minY = 0, maxY = 1;
   bool logx = false, logy = false;
   List<String>? algoRanking;
 
@@ -109,7 +80,6 @@ class SortWidgetState extends State<SortWidget> {
   void _startOneShotIsolate() async {
     oneShotReceivePort = ReceivePort();
     SendPort sendPort = oneShotReceivePort!.sendPort;
-    var ctor = algos[algoMap[sortingAlgoName]!][1];
     var info = [
       sendPort,
       numbers,
@@ -133,9 +103,9 @@ class SortWidgetState extends State<SortWidget> {
       String command = data[0];
       if (command == 'update_counts') {
         setState(() {
-          r_count = data[1];
-          w_count = data[2];
-          c_count = data[3];
+          rCount = data[1];
+          wCount = data[2];
+          cCount = data[3];
         });
       } else if (command == 'update_numbers') {
         setState(() {
@@ -159,7 +129,6 @@ class SortWidgetState extends State<SortWidget> {
   }
 
   static void oneShotEntryPoint(var info) {
-    var receivePort = new ReceivePort();
     var sendPort = info[0] as SendPort;
     var numbers = info[1];
     var algoInfo = algos[info[2]];
@@ -168,12 +137,13 @@ class SortWidgetState extends State<SortWidget> {
     algo.updateFrequency = info[3];
     algo.updateDelayMilliseconds = info[4];
     algo.setSendPort(sendPort);
-    Elements el_numbers = Elements(algo);
-    Elements el_scratch = Elements(algo);
-    el_numbers.init(numbers);
-    el_scratch.init([for (int i in numbers) 0]);
-    algo.setElements(el_numbers, el_scratch);
-    algo.sort(el_numbers, el_scratch);
+    Elements elNumbers = Elements(algo);
+    Elements elScratch = Elements(algo);
+    elNumbers.init(numbers);
+    // ignore: unused_local_variable
+    elScratch.init([for (int i in numbers) 0]);
+    algo.setElements(elNumbers, elScratch);
+    algo.sort(elNumbers, elScratch);
     algo.update(force: true);
   }
 
@@ -216,7 +186,6 @@ class SortWidgetState extends State<SortWidget> {
   }
 
   static void benchmarkEntryPoint(var info) {
-    var receivePort = new ReceivePort();
     var sendPort = info[0] as SendPort;
     String mode = info[1];
     for (int count in [50, 150, 250, 350, 450, 550, 650, 750, 850, 950]) {
@@ -236,15 +205,9 @@ class SortWidgetState extends State<SortWidget> {
         scratch.init(_scratch);
         algo.sort(numbers, scratch);
         developer.log(
-            "reads: ${algo.r_count}, writes: ${algo.w_count}, compares: ${algo.c_count}");
-        sendPort.send([
-          'update',
-          algoName,
-          count,
-          algo.r_count,
-          algo.w_count,
-          algo.c_count
-        ]);
+            "reads: ${algo.rCount}, writes: ${algo.wCount}, compares: ${algo.cCount}");
+        sendPort.send(
+            ['update', algoName, count, algo.rCount, algo.wCount, algo.cCount]);
       }
     }
     sendPort.send(['finished']);
@@ -281,7 +244,7 @@ class SortWidgetState extends State<SortWidget> {
 
   void shuffle() {
     setState(() {
-      int count = ((window.physicalSize.width - 24) / 15.0).toInt();
+      int count = (window.physicalSize.width - 24) ~/ 15;
       count = (count * pow(2.0, magnitude)).toInt();
       numbers.clear();
       for (int i = 0; i < count; i++) numbers.add(i + 1);
@@ -426,9 +389,9 @@ class SortWidgetState extends State<SortWidget> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     // Text("Size: ${numbers.length}"),
-                    Text("Reads: ${itos(r_count)}"),
-                    Text("Writes: ${itos(w_count)}"),
-                    Text("Comparisons: ${itos(c_count)}"),
+                    Text("Reads: ${itos(rCount)}"),
+                    Text("Writes: ${itos(wCount)}"),
+                    Text("Comparisons: ${itos(cCount)}"),
                   ],
                 ),
                 Divider(),

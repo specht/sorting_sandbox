@@ -1,7 +1,5 @@
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:developer' as developer;
-import 'package:sorting_sandbox/main.dart' show SortWidgetState;
 
 class Element {
   int a;
@@ -10,33 +8,37 @@ class Element {
   Element(this._algo, this.a);
 
   bool operator <(Element other) {
-    _algo.c_count++;
+    _algo.cCount++;
     _algo.update();
     return a < other.a;
   }
 
   bool operator <=(Element other) {
-    _algo.c_count++;
+    _algo.cCount++;
     _algo.update();
     return a <= other.a;
   }
 
   bool operator >(Element other) {
-    _algo.c_count++;
+    _algo.cCount++;
     _algo.update();
     return a > other.a;
   }
 
   bool operator >=(Element other) {
-    _algo.c_count++;
+    _algo.cCount++;
     _algo.update();
     return a >= other.a;
   }
 
+  int get hashCode {
+    return a;
+  }
+
   bool operator ==(other) {
-    _algo.c_count++;
+    _algo.cCount++;
     _algo.update();
-    return a == (other as Element).a;
+    return other is Element && a == other.a;
   }
 }
 
@@ -54,14 +56,14 @@ class Elements {
   }
 
   Element operator [](int index) {
-    _algo.r_count++;
+    _algo.rCount++;
     readMarker = index;
     _algo.update();
     return _elements[index];
   }
 
   void operator []=(int index, Element value) {
-    _algo.w_count++;
+    _algo.wCount++;
     writeMarker = index;
     _algo.update();
     _elements[index] = value;
@@ -76,8 +78,8 @@ class Elements {
 
 abstract class SortingAlgorithm {
   SendPort? sendPort;
-  int r_count = 0, w_count = 0, c_count = 0;
-  int update_count = 0;
+  int rCount = 0, wCount = 0, cCount = 0;
+  int updateCount = 0;
   Elements? list, scratch;
   int updateFrequency = 1;
   int updateDelayMilliseconds = 1;
@@ -100,9 +102,9 @@ abstract class SortingAlgorithm {
   }
 
   void update({bool force = false}) {
-    update_count++;
-    if (force || (update_count >= updateFrequency && updateFrequency > 0)) {
-      sendPort!.send(['update_counts', r_count, w_count, c_count]);
+    updateCount++;
+    if (force || (updateCount >= updateFrequency && updateFrequency > 0)) {
+      sendPort!.send(['update_counts', rCount, wCount, cCount]);
       sendPort!.send([
         'update_numbers',
         [for (Element x in list!._elements) x.a],
@@ -112,7 +114,7 @@ abstract class SortingAlgorithm {
         scratch!.readMarker,
         scratch!.writeMarker,
       ]);
-      update_count = 0;
+      updateCount = 0;
       if (updateDelayMilliseconds > 0)
         sleep(Duration(milliseconds: updateDelayMilliseconds));
     }
