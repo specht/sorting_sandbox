@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
+import 'package:flutter/material.dart';
 
 class Element {
   int a;
@@ -85,7 +86,11 @@ abstract class SortingAlgorithm {
   int updateDelayMilliseconds = 1;
   File? settingsFile;
 
-  SortingAlgorithm();
+  get name => '(no name)';
+  get color => Colors.black38;
+  get author => 'no author';
+
+  // SortingAlgorithm();
 
   void setSendPort(port) => sendPort = port;
   void sort(Elements list, Elements scratch);

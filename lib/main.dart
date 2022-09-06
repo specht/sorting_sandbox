@@ -1,19 +1,16 @@
+import 'dart:developer' as developer;
 import 'dart:isolate';
-import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
 import 'dart:ui';
-import 'dart:developer' as developer;
 
-import 'misc.dart';
+import 'package:collection/collection.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 
 import 'algos/bubble_sort.dart';
+import 'misc.dart';
 
-final List algos = [
-  ['Bubble Sort', () => BubbleSort(), Colors.green],
-];
-
-Map<String, int> algoMap = {};
+final List<SortingAlgorithm> algos = [new BubbleSort()];
 
 List speedSettings = [
   [1, 100],
@@ -26,7 +23,6 @@ List speedSettings = [
 ];
 
 void main() {
-  for (int i = 0; i < algos.length; i++) algoMap[algos[i][0]] = i;
   runApp(new RootApp());
 }
 
@@ -59,8 +55,8 @@ class SortWidgetState extends State<SortWidget> {
   bool isSorted = false;
   int? a, b, c, d;
   int speed = 3;
-  String sortingAlgoName = algos.first[0];
-  Map<String, List<Benchmark>> benchmarkByAlgo = {};
+  int sortingAlgoIndex = 0;
+  Map<int, List<Benchmark>> benchmarkByAlgo = {};
   int minX = 0, maxX = 1, minY = 0, maxY = 1;
   bool logx = false, logy = false;
   List<String>? algoRanking;
@@ -83,7 +79,7 @@ class SortWidgetState extends State<SortWidget> {
     var info = [
       sendPort,
       numbers,
-      algoMap[sortingAlgoName],
+      sortingAlgoIndex,
       speedSettings[speed][0],
       speedSettings[speed][1]
     ];
@@ -132,8 +128,8 @@ class SortWidgetState extends State<SortWidget> {
     var sendPort = info[0] as SendPort;
     var numbers = info[1];
     var algoInfo = algos[info[2]];
-    var ctor = algoInfo[1];
-    SortingAlgorithm algo = ctor();
+    var algo = algoInfo;
+    // SortingAlgorithm algo = ctor();
     algo.updateFrequency = info[3];
     algo.updateDelayMilliseconds = info[4];
     algo.setSendPort(sendPort);
@@ -163,9 +159,9 @@ class SortWidgetState extends State<SortWidget> {
         setState(() {
           benchmarkIsolate = null;
           benchmarkReceivePort = null;
-          List listTemp = algos.map<List>((entry) {
-            var b = benchmarkByAlgo[entry[0]]!.last;
-            return [entry[0], b.r + b.w + b.c];
+          List listTemp = algos.mapIndexed<List>((index, entry) {
+            var b = benchmarkByAlgo[index]!.last;
+            return [entry.name, b.r + b.w + b.c];
           }).toList();
           listTemp.sort((a, b) {
             return a[1].compareTo(b[1]);
@@ -175,9 +171,9 @@ class SortWidgetState extends State<SortWidget> {
       }
       if (data != null && data[0] == 'update') {
         setState(() {
-          String algoName = data[1];
-          benchmarkByAlgo[algoName] ??= [];
-          benchmarkByAlgo[algoName]!
+          int algoIndex = data[1];
+          benchmarkByAlgo[algoIndex] ??= [];
+          benchmarkByAlgo[algoIndex]!
               .add(Benchmark(data[2], data[3], data[4], data[5]));
         });
       }
@@ -189,10 +185,11 @@ class SortWidgetState extends State<SortWidget> {
     var sendPort = info[0] as SendPort;
     String mode = info[1];
     for (int count in [50, 150, 250, 350, 450, 550, 650, 750, 850, 950]) {
-      for (var entry in algos) {
-        String algoName = entry[0];
+      for (int i = 0; i < algos.length; i++) {
+        SortingAlgorithm entry = algos[i];
+        String algoName = entry.name;
         developer.log("Running $algoName with $count elements...");
-        SortingAlgorithm algo = entry[1]();
+        SortingAlgorithm algo = entry;
         List<int> _numbers = [for (int i = 0; i < count; i++) i + 1];
         if (mode == 'shuffled')
           _numbers.shuffle();
@@ -206,8 +203,8 @@ class SortWidgetState extends State<SortWidget> {
         algo.sort(numbers, scratch);
         developer.log(
             "reads: ${algo.rCount}, writes: ${algo.wCount}, compares: ${algo.cCount}");
-        sendPort.send(
-            ['update', algoName, count, algo.rCount, algo.wCount, algo.cCount]);
+        sendPort
+            .send(['update', i, count, algo.rCount, algo.wCount, algo.cCount]);
       }
     }
     sendPort.send(['finished']);
@@ -275,15 +272,15 @@ class SortWidgetState extends State<SortWidget> {
       String algoName =
           (algoRanking != null && algoRanking!.length == algos.length)
               ? algoRanking![i]
-              : algos[i][0];
+              : algos[i].name;
       algoLegend.add(
         Container(
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Container(
               decoration: new BoxDecoration(
                 borderRadius: new BorderRadius.circular(4.0),
-                color: (benchmarkByAlgo.containsKey(algoName)
-                        ? algos[algoMap[algoName]!][2]
+                color: (benchmarkByAlgo.containsKey(i)
+                        ? algos[i].color
                         : Colors.black38)
                     .withOpacity(0.15),
               ),
@@ -293,8 +290,8 @@ class SortWidgetState extends State<SortWidget> {
                     Text((algoRanking == null ? '' : '${i + 1}. ') + algoName,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: benchmarkByAlgo.containsKey(algoName)
-                              ? algos[algoMap[algoName]!][2]
+                          color: benchmarkByAlgo.containsKey(i)
+                              ? algos[i].color
                               : Colors.black38,
                         )),
               ),
@@ -368,7 +365,7 @@ class SortWidgetState extends State<SortWidget> {
                         );
                       }).toList(),
                     ),
-                    swapAnimationDuration: Duration(milliseconds: 100),
+                    swapAnimationDuration: Duration(milliseconds: 0),
                   ),
                 ),
                 Text(
@@ -446,18 +443,31 @@ class SortWidgetState extends State<SortWidget> {
                     Text('Algorithm:',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
-                    DropdownButton<String>(
-                      value: sortingAlgoName,
+                    DropdownButton<int>(
+                      value: sortingAlgoIndex,
                       items: algos
-                          .map((x) => DropdownMenuItem<String>(
-                              value: x[0],
-                              child:
-                                  Text(x[0], style: TextStyle(fontSize: 16))))
+                          .mapIndexed((i, x) => DropdownMenuItem<int>(
+                              value: i,
+                              child: Row(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      Icons.circle,
+                                      color: x.color,
+                                      size: 16,
+                                    ),
+                                  ),
+                                  Text(x.name, style: TextStyle(fontSize: 16)),
+                                  Text(" (${algos[sortingAlgoIndex].author})",
+                                      style: TextStyle(fontSize: 13)),
+                                ],
+                              )))
                           .toList(),
                       onChanged: oneShotIsolate != null
                           ? null
                           : (value) {
-                              setState(() => sortingAlgoName = value!);
+                              setState(() => sortingAlgoIndex = value!);
                             },
                     ),
                   ],
@@ -558,11 +568,11 @@ class SortWidgetState extends State<SortWidget> {
                     child: LineChart(
                       LineChartData(
                         lineBarsData: benchmarkByAlgo
-                            .map<String, LineChartBarData>((algoName, v) {
+                            .map<String, LineChartBarData>((algoIndex, v) {
                               return MapEntry<String, LineChartBarData>(
-                                  algoName,
+                                  algos[algoIndex].name,
                                   LineChartBarData(
-                                    spots: benchmarkByAlgo[algoName]!
+                                    spots: benchmarkByAlgo[algoIndex]!
                                         .map<FlSpot>((entry) {
                                       double x = entry.n.toDouble();
                                       double y = (entry.r + entry.w + entry.c)
@@ -576,9 +586,9 @@ class SortWidgetState extends State<SortWidget> {
                                         begin: Alignment.topCenter,
                                         end: Alignment.bottomCenter,
                                         colors: [
-                                          algos[algoMap[algoName]!][2] ??
+                                          algos[algoIndex].color ??
                                               Colors.black45,
-                                          algos[algoMap[algoName]!][2] ??
+                                          algos[algoIndex].color ??
                                               Colors.black45
                                         ]),
                                     barWidth: 2,
