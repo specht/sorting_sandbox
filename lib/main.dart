@@ -7,10 +7,10 @@ import 'package:collection/collection.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import 'algos/bubble_sort.dart';
+import 'algos/bubble_sort_nhcham.dart';
 import 'misc.dart';
 
-final List<SortingAlgorithm> algos = [new BubbleSort()];
+final List<SortingAlgorithm> algos = [new BubbleSortNHCham()];
 
 List speedSettings = [
   [1, 100],
@@ -273,6 +273,7 @@ class SortWidgetState extends State<SortWidget> {
           (algoRanking != null && algoRanking!.length == algos.length)
               ? algoRanking![i]
               : algos[i].name;
+      String algoAuthor = algos[i].author;
       algoLegend.add(
         Container(
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -286,14 +287,18 @@ class SortWidgetState extends State<SortWidget> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(4.0),
-                child:
-                    Text((algoRanking == null ? '' : '${i + 1}. ') + algoName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: benchmarkByAlgo.containsKey(i)
-                              ? algos[i].color
-                              : Colors.black38,
-                        )),
+                child: Text(
+                    (algoRanking == null ? '' : '${i + 1}. ') +
+                        algoName +
+                        ' (' +
+                        algoAuthor +
+                        ')',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: benchmarkByAlgo.containsKey(i)
+                          ? algos[i].color
+                          : Colors.black38,
+                    )),
               ),
             )),
       );
