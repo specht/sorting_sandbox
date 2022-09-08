@@ -122,5 +122,6 @@ abstract class SortingAlgorithm {
 
 class Benchmark {
   final int n, r, w, c;
-  Benchmark(this.n, this.r, this.w, this.c);
+  final bool isSorted;
+  Benchmark(this.n, this.r, this.w, this.c, this.isSorted);
 }

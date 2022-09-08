@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'algos/bubble_sort_nhcham.dart';
 import 'misc.dart';
 
-final List<SortingAlgorithm> algos = [new BubbleSortNHCham()];
+final List<SortingAlgorithm> algos = [
+  new BubbleSortNHCham(),
+];
 
 List speedSettings = [
   [1, 100],
@@ -59,7 +61,7 @@ class SortWidgetState extends State<SortWidget> {
   Map<int, List<Benchmark>> benchmarkByAlgo = {};
   int minX = 0, maxX = 1, minY = 0, maxY = 1;
   bool logx = false, logy = false;
-  List<String>? algoRanking;
+  List<int>? algoRanking;
 
   Isolate? oneShotIsolate;
   ReceivePort? oneShotReceivePort;
@@ -161,12 +163,15 @@ class SortWidgetState extends State<SortWidget> {
           benchmarkReceivePort = null;
           List listTemp = algos.mapIndexed<List>((index, entry) {
             var b = benchmarkByAlgo[index]!.last;
-            return [entry.name, b.r + b.w + b.c];
+            return [index, b.r + b.w + b.c, b.isSorted ? 1 : 0];
           }).toList();
           listTemp.sort((a, b) {
-            return a[1].compareTo(b[1]);
+            if (a[2] == b[2])
+              return a[1].compareTo(b[1]);
+            else
+              return b[2].compareTo(a[2]);
           });
-          algoRanking = listTemp.map<String>((entry) => entry[0]).toList();
+          algoRanking = listTemp.map<int>((entry) => entry[0]).toList();
         });
       }
       if (data != null && data[0] == 'update') {
@@ -174,7 +179,7 @@ class SortWidgetState extends State<SortWidget> {
           int algoIndex = data[1];
           benchmarkByAlgo[algoIndex] ??= [];
           benchmarkByAlgo[algoIndex]!
-              .add(Benchmark(data[2], data[3], data[4], data[5]));
+              .add(Benchmark(data[2], data[3], data[4], data[5], data[6]));
         });
       }
     });
@@ -188,7 +193,8 @@ class SortWidgetState extends State<SortWidget> {
       for (int i = 0; i < algos.length; i++) {
         SortingAlgorithm entry = algos[i];
         String algoName = entry.name;
-        developer.log("Running $algoName with $count elements...");
+        developer
+            .log("Running $algoName (${entry.author}) with $count elements...");
         SortingAlgorithm algo = entry;
         List<int> _numbers = [for (int i = 0; i < count; i++) i + 1];
         if (mode == 'shuffled')
@@ -201,10 +207,22 @@ class SortWidgetState extends State<SortWidget> {
         numbers.init(_numbers);
         scratch.init(_scratch);
         algo.sort(numbers, scratch);
+        bool isSorted = true;
+        for (int i = 0; isSorted && i < numbers.length; i++) {
+          if (numbers[i].a != i + 1) isSorted = false;
+        }
+
         developer.log(
-            "reads: ${algo.rCount}, writes: ${algo.wCount}, compares: ${algo.cCount}");
-        sendPort
-            .send(['update', i, count, algo.rCount, algo.wCount, algo.cCount]);
+            "reads: ${algo.rCount}, writes: ${algo.wCount}, compares: ${algo.cCount}, sorted: ${isSorted}");
+        sendPort.send([
+          'update',
+          i,
+          count,
+          algo.rCount,
+          algo.wCount,
+          algo.cCount,
+          isSorted
+        ]);
       }
     }
     sendPort.send(['finished']);
@@ -266,14 +284,19 @@ class SortWidgetState extends State<SortWidget> {
   }
 
   Widget build(BuildContext context) {
+    developer.log(algoRanking.toString());
     final PageController pageController = PageController(initialPage: 0);
     List<Container> algoLegend = [];
-    for (int i = 0; i < algos.length; i++) {
-      String algoName =
-          (algoRanking != null && algoRanking!.length == algos.length)
-              ? algoRanking![i]
-              : algos[i].name;
+    for (int k = 0; k < algos.length; k++) {
+      int i = k;
+      if (algoRanking != null && algoRanking!.length == algos.length)
+        i = algoRanking![k];
+      String algoName = algos[i].name;
       String algoAuthor = algos[i].author;
+      bool algoFailed = false;
+      if (benchmarkByAlgo != null &&
+          benchmarkByAlgo.containsKey(i) &&
+          !benchmarkByAlgo[i]!.last.isSorted) algoFailed = true;
       algoLegend.add(
         Container(
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -288,13 +311,18 @@ class SortWidgetState extends State<SortWidget> {
               child: Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: Text(
-                    (algoRanking == null ? '' : '${i + 1}. ') +
+                    (algoRanking == null
+                            ? ''
+                            : (algoFailed ? '' : '${k + 1}. ')) +
                         algoName +
                         ' (' +
                         algoAuthor +
                         ')',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      decoration:
+                          algoFailed ? TextDecoration.lineThrough : null,
+                      fontWeight:
+                          algoFailed ? FontWeight.normal : FontWeight.bold,
                       color: benchmarkByAlgo.containsKey(i)
                           ? algos[i].color
                           : Colors.black38,
@@ -308,11 +336,6 @@ class SortWidgetState extends State<SortWidget> {
         title: Row(
           children: [
             Text("Let's sort some numbers! 🥳"),
-            Spacer(),
-            Icon(
-              isSorted ? Icons.check : Icons.error_outline,
-              color: isSorted ? Colors.white : Colors.white,
-            ),
           ],
         ),
       ),
@@ -320,246 +343,275 @@ class SortWidgetState extends State<SortWidget> {
       body: PageView(
         controller: pageController,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: pow(numbers.length, exponent).toDouble(),
-                      barTouchData: BarTouchData(
-                        enabled: false,
-                      ),
-                      gridData: FlGridData(
-                          drawHorizontalLine: false, drawVerticalLine: false),
-                      titlesData: FlTitlesData(
-                        show: false,
-                      ),
-                      borderData: FlBorderData(
-                        show: false,
-                      ),
-                      barGroups: numbers
-                          .asMap()
-                          .entries
-                          .map<BarChartGroupData>((entry) {
-                        int x = entry.key;
-                        int y = entry.value;
-                        return BarChartGroupData(
-                          x: x,
-                          barRods: [
-                            BarChartRodData(
-                                toY: pow(y, exponent).toDouble(),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: x == a
-                                      ? [Colors.orange, Colors.orange]
-                                      : x == b
-                                          ? [Colors.red, Colors.red]
-                                          : [
-                                              Colors.greenAccent,
-                                              Colors.lightBlueAccent,
-                                            ],
-                                ),
-                                width: 2)
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                    swapAnimationDuration: Duration(milliseconds: 0),
-                  ),
-                ),
-                Text(
-                  'List to be sorted',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Stack(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Text("Size: ${numbers.length}"),
-                    Text("Reads: ${itos(rCount)}"),
-                    Text("Writes: ${itos(wCount)}"),
-                    Text("Comparisons: ${itos(cCount)}"),
-                  ],
-                ),
-                Divider(),
-                Expanded(
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: pow(scratch.length, exponent).toDouble(),
-                      barTouchData: BarTouchData(
-                        enabled: false,
-                      ),
-                      gridData: FlGridData(
-                          drawHorizontalLine: false, drawVerticalLine: false),
-                      titlesData: FlTitlesData(
-                        show: false,
-                      ),
-                      borderData: FlBorderData(
-                        show: false,
-                      ),
-                      barGroups: scratch
-                          .asMap()
-                          .entries
-                          .map<BarChartGroupData>((entry) {
-                        int x = entry.key;
-                        int y = entry.value;
-                        return BarChartGroupData(
-                          x: x,
-                          barRods: [
-                            BarChartRodData(
-                                toY: pow(y, exponent).toDouble(),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: x == c
-                                      ? [Colors.orange, Colors.orange]
-                                      : x == d
-                                          ? [Colors.red, Colors.red]
-                                          : [
-                                              Color(0xff808080),
-                                              Color(0xffe0e0e0),
-                                            ],
-                                ),
-                                width: 2)
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                    swapAnimationDuration: Duration(milliseconds: 100),
-                  ),
-                ),
-                Text(
-                  'Temporary list',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Text('Algorithm:',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                    DropdownButton<int>(
-                      value: sortingAlgoIndex,
-                      items: algos
-                          .mapIndexed((i, x) => DropdownMenuItem<int>(
-                              value: i,
-                              child: Row(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Icon(
-                                      Icons.circle,
-                                      color: x.color,
-                                      size: 16,
+                    Expanded(
+                      child: BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: pow(numbers.length, exponent).toDouble(),
+                          barTouchData: BarTouchData(
+                            enabled: false,
+                          ),
+                          gridData: FlGridData(
+                              drawHorizontalLine: false,
+                              drawVerticalLine: false),
+                          titlesData: FlTitlesData(
+                            show: false,
+                          ),
+                          borderData: FlBorderData(
+                            show: false,
+                          ),
+                          barGroups: numbers
+                              .asMap()
+                              .entries
+                              .map<BarChartGroupData>((entry) {
+                            int x = entry.key;
+                            int y = entry.value;
+                            return BarChartGroupData(
+                              x: x,
+                              barRods: [
+                                BarChartRodData(
+                                    toY: pow(y, exponent).toDouble(),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: x == a
+                                          ? [Colors.orange, Colors.orange]
+                                          : x == b
+                                              ? [Colors.red, Colors.red]
+                                              : [
+                                                  Colors.greenAccent,
+                                                  Colors.lightBlueAccent,
+                                                ],
                                     ),
-                                  ),
-                                  Text(x.name, style: TextStyle(fontSize: 16)),
-                                  Text(" (${algos[sortingAlgoIndex].author})",
-                                      style: TextStyle(fontSize: 13)),
-                                ],
-                              )))
-                          .toList(),
-                      onChanged: oneShotIsolate != null
-                          ? null
-                          : (value) {
-                              setState(() => sortingAlgoIndex = value!);
-                            },
-                    ),
-                  ],
-                ),
-                // Divider(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        label: 'Animation Speed',
-                        value: speed.toDouble(),
-                        min: 0,
-                        max: 6,
-                        divisions: 6,
-                        onChanged: oneShotIsolate != null
-                            ? null
-                            : (v) {
-                                setState(() => setSpeed(v.toInt()));
-                              },
+                                    width: 2)
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                        swapAnimationDuration: Duration(milliseconds: 0),
                       ),
                     ),
-                    SizedBox(
-                      child: Icon(Icons.speed),
-                      width: 60,
+                    Text(
+                      'List to be sorted',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    // Icon(Icons.flash_on_outlined),
+                    Divider(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Text("Size: ${numbers.length}"),
+                        Text("Reads: ${itos(rCount)}"),
+                        Text("Writes: ${itos(wCount)}"),
+                        Text("Comparisons: ${itos(cCount)}"),
+                      ],
+                    ),
+                    Divider(),
                     Expanded(
-                      child: Slider(
-                        activeColor: Colors.blue,
-                        inactiveColor: Colors.blue[100],
-                        label: 'List Size',
-                        value: magnitude.toDouble(),
-                        min: 0.0,
-                        max: 6.0,
-                        divisions: 6,
-                        onChanged: oneShotIsolate != null
-                            ? null
-                            : (v) {
-                                setState(() {
-                                  magnitude = v.toInt();
-                                  shuffle();
-                                });
-                              },
+                      child: BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: pow(scratch.length, exponent).toDouble(),
+                          barTouchData: BarTouchData(
+                            enabled: false,
+                          ),
+                          gridData: FlGridData(
+                              drawHorizontalLine: false,
+                              drawVerticalLine: false),
+                          titlesData: FlTitlesData(
+                            show: false,
+                          ),
+                          borderData: FlBorderData(
+                            show: false,
+                          ),
+                          barGroups: scratch
+                              .asMap()
+                              .entries
+                              .map<BarChartGroupData>((entry) {
+                            int x = entry.key;
+                            int y = entry.value;
+                            return BarChartGroupData(
+                              x: x,
+                              barRods: [
+                                BarChartRodData(
+                                    toY: pow(y, exponent).toDouble(),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: x == c
+                                          ? [Colors.orange, Colors.orange]
+                                          : x == d
+                                              ? [Colors.red, Colors.red]
+                                              : [
+                                                  Color(0xff808080),
+                                                  Color(0xffe0e0e0),
+                                                ],
+                                    ),
+                                    width: 2)
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                        swapAnimationDuration: Duration(milliseconds: 100),
                       ),
                     ),
-                    SizedBox(
-                        child: Text("n = ${itos(numbers.length)}"), width: 60)
+                    Text(
+                      'Temporary list',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Divider(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Text('Algorithm:',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        DropdownButton<int>(
+                          value: sortingAlgoIndex,
+                          items: algos
+                              .mapIndexed((i, x) => DropdownMenuItem<int>(
+                                  value: i,
+                                  child: Row(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Icon(
+                                          Icons.circle,
+                                          color: x.color,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      Text(x.name,
+                                          style: TextStyle(fontSize: 16)),
+                                      Text(" (${x.author})",
+                                          style: TextStyle(fontSize: 13)),
+                                    ],
+                                  )))
+                              .toList(),
+                          onChanged: oneShotIsolate != null
+                              ? null
+                              : (value) {
+                                  setState(() => sortingAlgoIndex = value!);
+                                },
+                        ),
+                      ],
+                    ),
+                    // Divider(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            label: 'Animation Speed',
+                            value: speed.toDouble(),
+                            min: 0,
+                            max: 6,
+                            divisions: 6,
+                            onChanged: oneShotIsolate != null
+                                ? null
+                                : (v) {
+                                    setState(() => setSpeed(v.toInt()));
+                                  },
+                          ),
+                        ),
+                        SizedBox(
+                          child: Icon(Icons.speed),
+                          width: 60,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        // Icon(Icons.flash_on_outlined),
+                        Expanded(
+                          child: Slider(
+                            activeColor: Colors.blue,
+                            inactiveColor: Colors.blue[100],
+                            label: 'List Size',
+                            value: magnitude.toDouble(),
+                            min: 0.0,
+                            max: 6.0,
+                            divisions: 6,
+                            onChanged: oneShotIsolate != null
+                                ? null
+                                : (v) {
+                                    setState(() {
+                                      magnitude = v.toInt();
+                                      shuffle();
+                                    });
+                                  },
+                          ),
+                        ),
+                        SizedBox(
+                            child: Text("n = ${itos(numbers.length)}"),
+                            width: 60)
+                      ],
+                    ),
+                    Divider(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                            onPressed: oneShotIsolate != null
+                                ? null
+                                : () {
+                                    shuffle();
+                                    updateIsSorted();
+                                  },
+                            icon: Icon(Icons.shuffle)),
+                        IconButton(
+                            onPressed: oneShotIsolate != null
+                                ? null
+                                : () {
+                                    setState(() {
+                                      numbers = List.from(numbers.reversed);
+                                    });
+                                    updateIsSorted();
+                                  },
+                            icon: Icon(Icons.compare_arrows_outlined)),
+                        IconButton(
+                            onPressed: oneShotIsolate != null
+                                ? null
+                                : () => _startOneShotIsolate(),
+                            icon: Icon(Icons.play_arrow)),
+                        IconButton(
+                            onPressed:
+                                oneShotIsolate != null ? () => stop() : null,
+                            icon: Icon(Icons.stop)),
+                      ],
+                    ),
                   ],
                 ),
-                Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                        onPressed: oneShotIsolate != null
-                            ? null
-                            : () {
-                                shuffle();
-                                updateIsSorted();
-                              },
-                        icon: Icon(Icons.shuffle)),
-                    IconButton(
-                        onPressed: oneShotIsolate != null
-                            ? null
-                            : () {
-                                setState(() {
-                                  numbers = List.from(numbers.reversed);
-                                });
-                                updateIsSorted();
-                              },
-                        icon: Icon(Icons.compare_arrows_outlined)),
-                    IconButton(
-                        onPressed: oneShotIsolate != null
-                            ? null
-                            : () => _startOneShotIsolate(),
-                        icon: Icon(Icons.play_arrow)),
-                    IconButton(
-                        onPressed: oneShotIsolate != null ? () => stop() : null,
-                        icon: Icon(Icons.stop)),
-                  ],
+              ),
+              Positioned(
+                left: 10,
+                top: 10,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                            color: Color.fromARGB(32, 0, 0, 0), blurRadius: 10)
+                      ],
+                      color: Colors.white,
+                      borderRadius: BorderRadius.all(Radius.circular(24))),
+                  child: Icon(
+                    isSorted ? Icons.check : Icons.error_outline,
+                    color: isSorted ? Colors.green : Colors.redAccent,
+                    size: 24.0,
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -573,9 +625,9 @@ class SortWidgetState extends State<SortWidget> {
                     child: LineChart(
                       LineChartData(
                         lineBarsData: benchmarkByAlgo
-                            .map<String, LineChartBarData>((algoIndex, v) {
-                              return MapEntry<String, LineChartBarData>(
-                                  algos[algoIndex].name,
+                            .map<int, LineChartBarData>((algoIndex, v) {
+                              return MapEntry<int, LineChartBarData>(
+                                  algoIndex,
                                   LineChartBarData(
                                     spots: benchmarkByAlgo[algoIndex]!
                                         .map<FlSpot>((entry) {
@@ -597,6 +649,11 @@ class SortWidgetState extends State<SortWidget> {
                                               Colors.black45
                                         ]),
                                     barWidth: 2,
+                                    dashArray: benchmarkByAlgo[algoIndex]!
+                                            .last
+                                            .isSorted
+                                        ? null
+                                        : [2, 10],
                                     isStrokeCapRound: true,
                                     dotData: FlDotData(
                                       show: false,
