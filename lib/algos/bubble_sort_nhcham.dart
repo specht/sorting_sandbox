@@ -7,8 +7,11 @@ class BubbleSortNHCham extends SortingAlgorithm {
   get author => 'nh_cham';
 
   void sort(Elements list, Elements scratch) {
-    for (int i = 0; i < list.length; i++) {
-      var x = list[i];
+    int length = list.length;
+    for (int i = 0; i < length; i++) {
+      for (int j = 0; j < length - i - 1; j++) {
+        if (list[j] > list[j + 1]) list.swap(j, j + 1);
+      }
     }
   }
 }
